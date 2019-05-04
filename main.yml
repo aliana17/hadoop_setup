@@ -1,0 +1,54 @@
+- hosts: all
+  tasks:
+    - include_vars: var.yml
+    - name: "Installing JDK"
+      yum:
+        name: "{{ jdk_loc }}"
+        state: present
+    - lineinfile:
+        path: /root/.bashrc
+        line: "export JAVA_HOME=/usr/java/jdk1.8.0_171-amd64/\nexport PATH=/usr/java/jdk1.8.0_171-amd64/bin/:$PATH"
+    - command: "rpm -ivh {{ hadoop_loc }} --force"
+- hosts: namenode
+  tasks:
+    - include_vars: var.yml
+    - name: "Setting up Namenode"
+      file:
+        path: /nn
+        state: directory
+    - lineinfile:
+        path: /etc/hadoop/hdfs-site.xml
+        insertafter: "<configuration>"
+        line: "\n<property>\n<name>dfs.name.dir</name>\n<value>/nn</value>\n</property>"
+    - lineinfile:
+        path: /etc/hadoop/core-site.xml
+        insertafter: "<configuration>"
+        line: "\n<property>\n<name>fs.default.name</name>\n<value>{{ IP }}:9001</value>\n</property>"
+    - command: "hadoop namenode -format -force"
+    - command: "hadoop-daemon.sh start namenode"
+    - iptables:
+        flush: true
+- hosts: datanode
+  tasks:
+    - include_vars: var.yml
+    - name: "Setting up Datanode"
+      file:
+        path: /data
+        state: directory
+    - lineinfile:
+        path: /etc/hadoop/hdfs-site.xml
+        insertafter: "<configuration>"
+        line: "\n<property>\n<name>dfs.data.dir</name>\n<value>/data</value>\n</property>"
+    - lineinfile:
+        path: /etc/hadoop/core-site.xml
+        insertafter: "<configuration>"
+        line: "\n<property>\n<name>fs.default.name</name>\n<value>hdfs://{{ IP }}:9001</value>\n</property>"
+    - iptables:
+        flush: true
+- hosts: namenode
+  tasks:
+    - command: "hadoop-daemon.sh start datanode"
+
+
+
+      
